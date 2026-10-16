@@ -1,0 +1,129 @@
+// IAR FAE Interview Academy — local SQLite schema
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// 單一使用者設定（id 固定為 1）
+model Settings {
+  id            Int      @id @default(1)
+  dailyMinutes  Int      @default(60)
+  planStartDate DateTime?
+  updatedAt     DateTime @updatedAt
+}
+
+/// 診斷測驗結果（每次作答一筆）
+model DiagnosticResult {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  scoresJson String // { skillId: 0-100 }
+  answersJson String // [{questionId, chosen, correct, confidence}]
+  selfJson   String // 自評（英文/FAE）
+}
+
+/// 所有 Quiz 作答（課程 Quiz、診斷測驗、複習）
+model QuizAttempt {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  source     String // "lesson" | "diagnostic" | "review"
+  refId      String // lessonId 或 "diagnostic"
+  questionId String
+  skill      String
+  chosen     Int
+  correct    Boolean
+
+  @@index([questionId])
+  @@index([skill])
+}
+
+/// 課程進度
+model LessonProgress {
+  lessonId    String    @id
+  status      String    @default("in_progress") // in_progress | completed
+  bestScore   Int       @default(0) // 0-100
+  lastScore   Int       @default(0)
+  visits      Int       @default(0)
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+/// 筆記（可綁定課程 / 題目 / 任意頁面）
+model Note {
+  id        Int      @id @default(autoincrement())
+  refType   String // lesson | english | lab | general
+  refId     String
+  title     String   @default("")
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([refType, refId])
+}
+
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  refType   String
+  refId     String
+  title     String
+  href      String
+  createdAt DateTime @default(now())
+
+  @@unique([refType, refId])
+}
+
+/// Spaced repetition 卡片（SM-2）
+model ReviewCard {
+  id         Int      @id @default(autoincrement())
+  cardKey    String   @unique // e.g. "quiz:t1-pipeline:q3" / "term:linker-script"
+  kind       String // quiz | term | english
+  skill      String
+  front      String
+  back       String
+  ease       Float    @default(2.5)
+  interval   Int      @default(0) // days
+  reps       Int      @default(0)
+  lapses     Int      @default(0)
+  due        DateTime @default(now())
+  suspended  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([due])
+}
+
+/// 統一活動紀錄：英文練習、口說、模擬面試、Lab、Copilot、計畫任務
+model Activity {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  type        String // english | speaking | mock | lab | copilot | lesson | review | plan
+  refId       String
+  skill       String   @default("")
+  minutes     Int      @default(0)
+  score       Int? // 0-100（可為空）
+  payloadJson String   @default("{}")
+
+  @@index([type])
+  @@index([createdAt])
+}
+
+/// 模擬面試 Session
+model MockSession {
+  id             Int      @id @default(autoincrement())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  mode           String // recruiter | technical | customer
+  status         String   @default("active") // active | finished
+  transcriptJson String   @default("[]")
+  summaryJson    String   @default("{}")
+}
+
+/// 14 天計畫的任務勾選
+model PlanTask {
+  taskId    String   @id
+  done      Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
