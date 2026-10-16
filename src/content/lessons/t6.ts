@@ -34,7 +34,7 @@ export const T6: LessonContent[] = [
 | Post-sales | 續約 / 擴充 | onboarding、技術支援、知識庫、回饋產品 |
 
 #### 一句話的價值主張（範例）
-「我有多年韌體開發與量產測試經驗，習慣從 build log、map file、除錯器追到根因；我的目標是讓客戶在評估期就看見可量測的成果，並把每一次支援變成可重用的知識。」—— 接著**誠實說明**：沒有正式 FAE 年資，但有大量跨部門與客戶溝通經驗（依你的實際經歷填入）。
+「我帶領軟體團隊多年，做過 SSD/SD controller 韌體、Embedded Linux、FreeRTOS 與 Zynq/MPSoC 軟硬體整合，習慣從 build log、map file、除錯器追到根因；我希望讓客戶在評估期就看見可量測的成果，並把每一次支援變成可重用的知識。」—— 接著**誠實說明**：沒有正式 FAE / 售前年資，也沒有確認過的 IAR 使用經驗，但長期處理跨團隊技術問題與對內對外的技術溝通（請以你的實際經歷舉例）。
 `,
     terms: [
       { en: "Field Application Engineer (FAE)", zh: "應用工程師", note: "技術面支援銷售與客戶" },
@@ -121,7 +121,7 @@ export const T6: LessonContent[] = [
       {
         q: "You don't have formal FAE experience. Why should we hire you?",
         zh: "你沒有正式的 FAE 經驗，為什麼要錄用你？",
-        points: ["誠實承認", "可轉移的經驗：韌體、量產測試、跨部門溝通、客戶問題排除", "具體例子（STAR）", "學習計畫與這個平台的準備證據", "對 IAR 產品的理解"],
+        points: ["誠實承認", "可轉移的經驗：軟體團隊管理、SSD/SD controller 韌體、系統整合除錯、跨團隊溝通", "具體例子（STAR）", "學習計畫與這個平台的準備證據", "對 IAR 產品的理解"],
       },
       {
         q: "How would you measure your success in this role after six months?",

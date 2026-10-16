@@ -12,11 +12,11 @@ import { ThemeToggle } from "./theme-toggle";
 
 const ICONS = { LayoutDashboard, ClipboardCheck, Target, CalendarDays, BookOpen, FlaskConical, Repeat, Languages, Mic, MessagesSquare, Zap, NotebookPen, Settings };
 
-export function Sidebar({ enabled }: { enabled: string[] }) {
+export function Sidebar({ enabled, open = false }: { enabled: string[]; open?: boolean }) {
   const pathname = usePathname();
   const groups = Array.from(new Set(NAV.filter((n) => enabled.includes(n.href)).map((n) => n.group)));
   return (
-    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border bg-surface">
+    <aside className={cn("fixed inset-y-0 left-0 z-40 flex h-screen w-60 shrink-0 flex-col border-r border-border bg-surface transition-transform md:sticky md:top-0 md:translate-x-0", open ? "translate-x-0 shadow-xl" : "-translate-x-full")}>
       <Link href="/" className="flex items-center gap-2.5 px-5 py-4">
         <span className="grid h-8 w-8 place-items-center rounded-md bg-accent text-accent-fg">
           <Cpu size={17} strokeWidth={2.2} />
