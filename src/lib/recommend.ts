@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import { LESSONS } from "@/content/catalog";
+import { LESSON_CONTENT } from "@/content/lessons";
 import { SKILL_LABEL } from "@/content/skills";
 import type { SkillScore } from "./progress";
 
@@ -22,7 +23,7 @@ export async function recommendations(scores: SkillScore[], hasDiagnostic: boole
       if (enabled.includes("/english")) out.push({ title: "英文自我介紹與獵頭面談練習", reason: `英文溝通目前估計 ${s.score} 分，是面試第一關。`, href: "/english", minutes: 30 });
       continue;
     }
-    const next = LESSONS.find((l) => l.skill === s.id && progress[l.id]?.status !== "completed");
+    const next = LESSONS.find((l) => l.skill === s.id && LESSON_CONTENT[l.id] && progress[l.id]?.status !== "completed");
     if (next && enabled.includes("/learn")) {
       out.push({ title: next.title, reason: `${SKILL_LABEL[s.id]} 目前估計 ${s.score} 分（最弱項之一）。`, href: `/learn/${next.id}`, minutes: next.minutes });
     }
