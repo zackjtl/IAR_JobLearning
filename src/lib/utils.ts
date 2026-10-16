@@ -14,8 +14,12 @@ export function clamp(n: number, lo = 0, hi = 100) {
 }
 
 export function fmtDate(d: Date | string) {
+  // Deterministic (no ICU locale data) so server and browser render identical text — avoids hydration
+  // mismatches. Taiwan has no DST, so Asia/Taipei is always UTC+8.
   const x = typeof d === "string" ? new Date(d) : d;
-  return x.toLocaleString("zh-TW", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Taipei" });
+  const t = new Date(x.getTime() + 8 * 3600 * 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(t.getUTCMonth() + 1)}/${p(t.getUTCDate())} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}`;
 }
 
 /** Date key in Asia/Taipei, e.g. 2026-10-16 */

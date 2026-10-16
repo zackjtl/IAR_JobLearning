@@ -4,6 +4,7 @@ import { LESSONS } from "@/content/catalog";
 import { LESSON_CONTENT } from "@/content/lessons";
 import { SKILL_LABEL } from "@/content/skills";
 import type { SkillScore } from "./progress";
+import { planDayIndex, planState, todayAgenda } from "./plan";
 
 export type Recommendation = { title: string; reason: string; href: string; minutes: number };
 
@@ -12,13 +13,25 @@ export async function recommendations(scores: SkillScore[], hasDiagnostic: boole
   if (!hasDiagnostic) {
     out.push({ title: "完成初始診斷測驗", reason: "還沒有能力基準；所有建議都依此產生。", href: "/diagnostic", minutes: 25 });
   }
+  if (enabled.includes("/plan") && hasDiagnostic) {
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const dayIdx = planDayIndex(settings?.planStartDate);
+    if (dayIdx === null) {
+      out.push({ title: "開始 14 天學習計畫", reason: "依優先順序（英文自介 → 編譯/連結 → Debug → IAR → FAE）每天自動排出任務。", href: "/plan", minutes: 2 });
+    } else if (dayIdx >= 1 && dayIdx <= 14) {
+      const agenda = todayAgenda(await planState(), dayIdx, settings?.dailyMinutes ?? 60, 0);
+      for (const t of agenda.items.slice(0, 2)) {
+        out.push({ title: t.title, reason: `今日計畫（第 ${agenda.day} 天${t.day < agenda.day ? `，補第 ${t.day} 天` : ""}）`, href: t.href, minutes: t.minutes });
+      }
+    }
+  }
   if (enabled.includes("/review")) {
     const due = await prisma.reviewCard.count({ where: { due: { lte: new Date() }, suspended: false } });
     if (due >= 5) out.push({ title: `複習 ${due} 張到期卡片`, reason: "間隔重複：到期就複習，記憶最穩固。", href: "/review", minutes: Math.min(20, due) });
   }
   const ranked = scores.filter((s) => s.score !== null).sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
   for (const s of ranked) {
-    if (out.length >= 3) break;
+    if (out.length >= 4) break;
     if (s.id === "english") {
       if (enabled.includes("/english")) out.push({ title: "英文自我介紹與獵頭面談練習", reason: `英文溝通目前估計 ${s.score} 分，是面試第一關。`, href: "/english", minutes: 30 });
       continue;
@@ -28,5 +41,5 @@ export async function recommendations(scores: SkillScore[], hasDiagnostic: boole
       out.push({ title: next.title, reason: `${SKILL_LABEL[s.id]} 目前估計 ${s.score} 分（最弱項之一）。`, href: `/learn/${next.id}`, minutes: next.minutes });
     }
   }
-  return out.slice(0, 3);
+  return out.slice(0, 4);
 }

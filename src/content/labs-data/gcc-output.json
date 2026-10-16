@@ -1,0 +1,531 @@
+{
+ "meta": {
+  "toolchain": "arm-none-eabi-gcc (xPack GNU Arm Embedded GCC x86_64) 14.2.1 20241119",
+  "generatedAt": "2026-10-16",
+  "note": "Recorded offline with a real arm-none-eabi-gcc by scripts/gen-lab-data.mjs. The website does not compile code.",
+  "cpuFlags": "-mcpu=cortex-m4 -mthumb -mfloat-abi=soft -fno-asynchronous-unwind-tables"
+ },
+ "optimization": {
+  "opt_sum": {
+   "source": "#include <stdint.h>\n/* Sum an array: watch loop structure, unrolling and register use change by -O level. */\nint32_t sum_array(const int32_t *a, int n)\n{\n    int32_t s = 0;\n    for (int i = 0; i < n; i++)\n        s += a[i];\n    return s;\n}\n",
+   "levels": {
+    "O0": {
+     "asm": "sum_array:\n\tpush {r7}\n\tsub sp, sp, #20\n\tadd r7, sp, #0\n\tstr r0, [r7, #4]\n\tstr r1, [r7]\n\tmovs r3, #0\n\tstr r3, [r7, #12]\n\tmovs r3, #0\n\tstr r3, [r7, #8]\n\tb .L2\n.L3:\n\tldr r3, [r7, #8]\n\tlsls r3, r3, #2\n\tldr r2, [r7, #4]\n\tadd r3, r3, r2\n\tldr r3, [r3]\n\tldr r2, [r7, #12]\n\tadd r3, r3, r2\n\tstr r3, [r7, #12]\n\tldr r3, [r7, #8]\n\tadds r3, r3, #1\n\tstr r3, [r7, #8]\n.L2:\n\tldr r2, [r7, #8]\n\tldr r3, [r7]\n\tcmp r2, r3\n\tblt .L3\n\tldr r3, [r7, #12]\n\tmov r0, r3\n\tadds r7, r7, #20\n\tmov sp, r7\n\tpop {r7}\n\tbx lr",
+     "sizes": {
+      "sum_array": 62
+     }
+    },
+    "O1": {
+     "asm": "sum_array:\n\tcmp r1, #0\n\tble .L4\n\tsubs r3, r0, #4\n\tadd r1, r3, r1, lsl #2\n\tmovs r0, #0\n.L3:\n\tldr r2, [r3, #4]!\n\tadd r0, r0, r2\n\tcmp r3, r1\n\tbne .L3\n\tbx lr\n.L4:\n\tmovs r0, #0\n\tbx lr",
+     "sizes": {
+      "sum_array": 28
+     }
+    },
+    "O2": {
+     "asm": "sum_array:\n\tcmp r1, #0\n\tble .L4\n\tsubs r3, r0, #4\n\tadd r1, r3, r1, lsl #2\n\tmovs r0, #0\n.L3:\n\tldr r2, [r3, #4]!\n\tcmp r3, r1\n\tadd r0, r0, r2\n\tbne .L3\n\tbx lr\n.L4:\n\tmovs r0, #0\n\tbx lr",
+     "sizes": {
+      "sum_array": 28
+     }
+    },
+    "O3": {
+     "asm": "sum_array:\n\tcmp r1, #0\n\tble .L4\n\tsubs r3, r0, #4\n\tadd r1, r3, r1, lsl #2\n\tmovs r0, #0\n.L3:\n\tldr r2, [r3, #4]!\n\tcmp r1, r3\n\tadd r0, r0, r2\n\tbne .L3\n\tbx lr\n.L4:\n\tmovs r0, #0\n\tbx lr",
+     "sizes": {
+      "sum_array": 28
+     }
+    },
+    "Os": {
+     "asm": "sum_array:\n\tpush {r4, lr}\n\tmovs r3, #0\n\tmov r2, r0\n\tmov r0, r3\n.L2:\n\tcmp r3, r1\n\tblt .L3\n\tpop {r4, pc}\n.L3:\n\tldr r4, [r2, r3, lsl #2]\n\tadds r3, r3, #1\n\tadd r0, r0, r4\n\tb .L2",
+     "sizes": {
+      "sum_array": 24
+     }
+    }
+   }
+  },
+  "opt_flag": {
+   "source": "#include <stdint.h>\n/* Set by an interrupt handler. Missing volatile => optimizer may hoist the load out of the loop. */\nuint32_t g_ready;\nvolatile uint32_t g_ready_v;\n\nvoid wait_ready(void)\n{\n    while (g_ready == 0) { }\n}\n\nvoid wait_ready_volatile(void)\n{\n    while (g_ready_v == 0) { }\n}\n",
+   "levels": {
+    "O0": {
+     "asm": "g_ready:\n\t.space 4\ng_ready_v:\n\t.space 4\nwait_ready:\n\tpush {r7}\n\tadd r7, sp, #0\n\tnop\n.L2:\n\tldr r3, .L3\n\tldr r3, [r3]\n\tcmp r3, #0\n\tbeq .L2\n\tnop\n\tnop\n\tmov sp, r7\n\tpop {r7}\n\tbx lr\n.L4:\n.L3:\n\t.word g_ready\nwait_ready_volatile:\n\tpush {r7}\n\tadd r7, sp, #0\n\tnop\n.L6:\n\tldr r3, .L7\n\tldr r3, [r3]\n\tcmp r3, #0\n\tbeq .L6\n\tnop\n\tnop\n\tmov sp, r7\n\tpop {r7}\n\tbx lr\n.L8:\n.L7:\n\t.word g_ready_v",
+     "sizes": {
+      "wait_ready": 28,
+      "wait_ready_volatile": 28
+     }
+    },
+    "O1": {
+     "asm": "wait_ready:\n\tldr r3, .L4\n\tldr r3, [r3]\n.L2:\n\tcmp r3, #0\n\tbeq .L2\n\tbx lr\n.L5:\n.L4:\n\t.word .LANCHOR0\nwait_ready_volatile:\n\tldr r2, .L9\n.L7:\n\tldr r3, [r2, #4]\n\tcmp r3, #0\n\tbeq .L7\n\tbx lr\n.L10:\n.L9:\n\t.word .LANCHOR0\ng_ready:\n\t.space 4\ng_ready_v:\n\t.space 4",
+     "sizes": {
+      "wait_ready": 16,
+      "wait_ready_volatile": 16
+     }
+    },
+    "O2": {
+     "asm": "wait_ready:\n\tldr r3, .L5\n\tldr r3, [r3]\n\tcbz r3, .L3\n\tbx lr\n.L3:\n\tb .L3\n.L6:\n.L5:\n\t.word .LANCHOR0\nwait_ready_volatile:\n\tldr r2, .L11\n.L8:\n\tldr r3, [r2, #4]\n\tcmp r3, #0\n\tbeq .L8\n\tbx lr\n.L12:\n.L11:\n\t.word .LANCHOR0\ng_ready:\n\t.space 4\ng_ready_v:\n\t.space 4",
+     "sizes": {
+      "wait_ready": 16,
+      "wait_ready_volatile": 16
+     }
+    },
+    "O3": {
+     "asm": "wait_ready:\n\tldr r3, .L5\n\tldr r3, [r3]\n\tcbnz r3, .L1\n.L3:\n\tb .L3\n.L1:\n\tbx lr\n.L6:\n.L5:\n\t.word .LANCHOR0\nwait_ready_volatile:\n\tldr r2, .L11\n.L8:\n\tldr r3, [r2, #4]\n\tcmp r3, #0\n\tbeq .L8\n\tbx lr\n.L12:\n.L11:\n\t.word .LANCHOR0\ng_ready:\n\t.space 4\ng_ready_v:\n\t.space 4",
+     "sizes": {
+      "wait_ready": 16,
+      "wait_ready_volatile": 16
+     }
+    },
+    "Os": {
+     "asm": "wait_ready:\n\tldr r3, .L4\n\tldr r3, [r3]\n\tcbnz r3, .L1\n.L3:\n\tb .L3\n.L1:\n\tbx lr\n.L5:\n.L4:\n\t.word .LANCHOR0\nwait_ready_volatile:\n\tldr r2, .L10\n.L7:\n\tldr r3, [r2, #4]\n\tcmp r3, #0\n\tbeq .L7\n\tbx lr\n.L11:\n.L10:\n\t.word .LANCHOR0\ng_ready:\n\t.space 4\ng_ready_v:\n\t.space 4",
+     "sizes": {
+      "wait_ready": 16,
+      "wait_ready_volatile": 16
+     }
+    }
+   }
+  },
+  "opt_clear": {
+   "source": "#include <stdint.h>\n/* A hand-written clear loop: GCC may recognize the idiom and call memset. */\nvoid clear_buf(uint8_t *p, unsigned n)\n{\n    for (unsigned i = 0; i < n; i++)\n        p[i] = 0;\n}\n",
+   "levels": {
+    "O0": {
+     "asm": "clear_buf:\n\tpush {r7}\n\tsub sp, sp, #20\n\tadd r7, sp, #0\n\tstr r0, [r7, #4]\n\tstr r1, [r7]\n\tmovs r3, #0\n\tstr r3, [r7, #12]\n\tb .L2\n.L3:\n\tldr r2, [r7, #4]\n\tldr r3, [r7, #12]\n\tadd r3, r3, r2\n\tmovs r2, #0\n\tstrb r2, [r3]\n\tldr r3, [r7, #12]\n\tadds r3, r3, #1\n\tstr r3, [r7, #12]\n.L2:\n\tldr r2, [r7, #12]\n\tldr r3, [r7]\n\tcmp r2, r3\n\tbcc .L3\n\tnop\n\tnop\n\tadds r7, r7, #20\n\tmov sp, r7\n\tpop {r7}\n\tbx lr",
+     "sizes": {
+      "clear_buf": 52
+     }
+    },
+    "O1": {
+     "asm": "clear_buf:\n\tcbz r1, .L1\n\tsubs r3, r0, #1\n\tadd r0, r0, r1\n\tsubs r2, r0, #1\n\tmovs r1, #0\n.L3:\n\tstrb r1, [r3, #1]!\n\tcmp r3, r2\n\tbne .L3\n.L1:\n\tbx lr",
+     "sizes": {
+      "clear_buf": 20
+     }
+    },
+    "O2": {
+     "asm": "clear_buf:\n\tmov r2, r1\n\tcbz r1, .L1\n\tmovs r1, #0\n\tb memset\n.L1:\n\tbx lr",
+     "sizes": {
+      "clear_buf": 12
+     }
+    },
+    "O3": {
+     "asm": "clear_buf:\n\tmov r2, r1\n\tcbz r1, .L1\n\tmovs r1, #0\n\tb memset\n.L1:\n\tbx lr",
+     "sizes": {
+      "clear_buf": 12
+     }
+    },
+    "Os": {
+     "asm": "clear_buf:\n\tadd r1, r1, r0\n\tmovs r3, #0\n.L2:\n\tcmp r0, r1\n\tbne .L3\n\tbx lr\n.L3:\n\tstrb r3, [r0], #1\n\tb .L2",
+     "sizes": {
+      "clear_buf": 16
+     }
+    }
+   }
+  },
+  "opt_inline": {
+   "source": "#include <stdint.h>\n/* Small helper + constant arguments: inlining and constant folding. */\nstatic int32_t scale(int32_t x, int32_t k) { return (x * k) >> 4; }\n\nint32_t calc(void)\n{\n    return scale(100, 8) + scale(20, 16);\n}\n\nint32_t calc_var(int32_t x)\n{\n    return scale(x, 8) + scale(x, 16);\n}\n",
+   "levels": {
+    "O0": {
+     "asm": "scale:\n\tpush {r7}\n\tsub sp, sp, #12\n\tadd r7, sp, #0\n\tstr r0, [r7, #4]\n\tstr r1, [r7]\n\tldr r3, [r7, #4]\n\tldr r2, [r7]\n\tmul r3, r2, r3\n\tasrs r3, r3, #4\n\tmov r0, r3\n\tadds r7, r7, #12\n\tmov sp, r7\n\tpop {r7}\n\tbx lr\ncalc:\n\tpush {r3, r4, r7, lr}\n\tadd r7, sp, #0\n\tmovs r1, #8\n\tmovs r0, #100\n\tbl scale\n\tmov r4, r0\n\tmovs r1, #16\n\tmovs r0, #20\n\tbl scale\n\tmov r3, r0\n\tadd r3, r3, r4\n\tmov r0, r3\n\tpop {r3, r4, r7, pc}\ncalc_var:\n\tpush {r4, r7, lr}\n\tsub sp, sp, #12\n\tadd r7, sp, #0\n\tstr r0, [r7, #4]\n\tmovs r1, #8\n\tldr r0, [r7, #4]\n\tbl scale\n\tmov r4, r0\n\tmovs r1, #16\n\tldr r0, [r7, #4]\n\tbl scale\n\tmov r3, r0\n\tadd r3, r3, r4\n\tmov r0, r3\n\tadds r7, r7, #12\n\tmov sp, r7\n\tpop {r4, r7, pc}",
+     "sizes": {
+      "calc": 30,
+      "calc_var": 38,
+      "scale": 30
+     }
+    },
+    "O1": {
+     "asm": "calc:\n\tmovs r0, #70\n\tbx lr\ncalc_var:\n\tsbfx r3, r0, #0, #28\n\tsbfx r0, r0, #1, #28\n\tadd r0, r0, r3\n\tbx lr",
+     "sizes": {
+      "calc": 4,
+      "calc_var": 12
+     }
+    },
+    "O2": {
+     "asm": "calc:\n\tmovs r0, #70\n\tbx lr\ncalc_var:\n\tsbfx r3, r0, #0, #28\n\tsbfx r0, r0, #1, #28\n\tadd r0, r0, r3\n\tbx lr",
+     "sizes": {
+      "calc": 4,
+      "calc_var": 12
+     }
+    },
+    "O3": {
+     "asm": "calc:\n\tmovs r0, #70\n\tbx lr\ncalc_var:\n\tsbfx r3, r0, #0, #28\n\tsbfx r0, r0, #1, #28\n\tadd r0, r0, r3\n\tbx lr",
+     "sizes": {
+      "calc": 4,
+      "calc_var": 12
+     }
+    },
+    "Os": {
+     "asm": "calc:\n\tmovs r0, #70\n\tbx lr\ncalc_var:\n\tsbfx r3, r0, #0, #28\n\tsbfx r0, r0, #1, #28\n\tadd r0, r0, r3\n\tbx lr",
+     "sizes": {
+      "calc": 4,
+      "calc_var": 12
+     }
+    }
+   }
+  },
+  "opt_switch": {
+   "source": "#include <stdint.h>\n/* Dense switch: compiler may emit a jump table, a lookup table, or compare chains. */\nint map_cmd(int c)\n{\n    switch (c) {\n    case 0: return 11;\n    case 1: return 29;\n    case 2: return 37;\n    case 3: return 41;\n    case 4: return 53;\n    case 5: return 67;\n    default: return -1;\n    }\n}\n",
+   "levels": {
+    "O0": {
+     "asm": "map_cmd:\n\tpush {r7}\n\tsub sp, sp, #12\n\tadd r7, sp, #0\n\tstr r0, [r7, #4]\n\tldr r3, [r7, #4]\n\tcmp r3, #5\n\tbhi .L2\n\tadr r2, .L4\n\tldr pc, [r2, r3, lsl #2]\n.L4:\n\t.word .L9+1\n\t.word .L8+1\n\t.word .L7+1\n\t.word .L6+1\n\t.word .L5+1\n\t.word .L3+1\n.L9:\n\tmovs r3, #11\n\tb .L10\n.L8:\n\tmovs r3, #29\n\tb .L10\n.L7:\n\tmovs r3, #37\n\tb .L10\n.L6:\n\tmovs r3, #41\n\tb .L10\n.L5:\n\tmovs r3, #53\n\tb .L10\n.L3:\n\tmovs r3, #67\n\tb .L10\n.L2:\n\tmov r3, #-1\n.L10:\n\tmov r0, r3\n\tadds r7, r7, #12\n\tmov sp, r7\n\tpop {r7}\n\tbx lr",
+     "sizes": {
+      "map_cmd": 82
+     }
+    },
+    "O1": {
+     "asm": "map_cmd:\n\tcmp r0, #5\n\tbhi .L2\n\ttbb [pc, r0]\n.L4:\n\t.byte (.L9-.L4)/2\n\t.byte (.L10-.L4)/2\n\t.byte (.L7-.L4)/2\n\t.byte (.L6-.L4)/2\n\t.byte (.L5-.L4)/2\n\t.byte (.L3-.L4)/2\n.L9:\n\tmovs r0, #11\n\tbx lr\n.L7:\n\tmovs r0, #37\n\tbx lr\n.L6:\n\tmovs r0, #41\n\tbx lr\n.L5:\n\tmovs r0, #53\n\tbx lr\n.L3:\n\tmovs r0, #67\n\tbx lr\n.L2:\n\tmov r0, #-1\n\tbx lr\n.L10:\n\tmovs r0, #29\n\tbx lr",
+     "sizes": {
+      "map_cmd": 44
+     }
+    },
+    "O2": {
+     "asm": "map_cmd:\n\tcmp r0, #5\n\titte ls\n\tldrls r3, .L5\n\tldrls r0, [r3, r0, lsl #2]\n\tmovhi r0, #-1\n\tbx lr\n.L6:\n.L5:\n\t.word .LANCHOR0\nCSWTCH.1:\n\t.word 11\n\t.word 29\n\t.word 37\n\t.word 41\n\t.word 53\n\t.word 67",
+     "sizes": {
+      "map_cmd": 20
+     }
+    },
+    "O3": {
+     "asm": "map_cmd:\n\tcmp r0, #5\n\titte ls\n\tldrls r3, .L5\n\tldrls r0, [r3, r0, lsl #2]\n\tmovhi r0, #-1\n\tbx lr\n.L6:\n.L5:\n\t.word .LANCHOR0\nCSWTCH.1:\n\t.word 11\n\t.word 29\n\t.word 37\n\t.word 41\n\t.word 53\n\t.word 67",
+     "sizes": {
+      "map_cmd": 20
+     }
+    },
+    "Os": {
+     "asm": "map_cmd:\n\tcmp r0, #5\n\titte ls\n\tldrls r3, .L4\n\tldrsbls r0, [r3, r0]\n\tmovhi r0, #-1\n\tbx lr\n.L5:\n.L4:\n\t.word .LANCHOR0\nCSWTCH.1:\n\t.byte 11\n\t.byte 29\n\t.byte 37\n\t.byte 41\n\t.byte 53\n\t.byte 67",
+     "sizes": {
+      "map_cmd": 20
+     }
+    }
+   }
+  }
+ },
+ "sections": {
+  "source": "#include <stdint.h>\n/* Where does each object end up? (inspected with arm-none-eabi-nm -S and size -A) */\nint32_t        g_init       = 42;          /* initialized global      */\nint32_t        g_zero;                     /* zero-initialized global */\nint32_t        g_zero_expl  = 0;           /* explicitly zero         */\nconst int32_t  g_const      = 7;           /* const global            */\nconst uint8_t  g_table[256] = { 1, 2, 3 }; /* large const table       */\nstatic int32_t s_file_static = 5;          /* file-scope static       */\nconst char    *g_msg        = \"hello\";     /* pointer (RW) to literal */\nchar           g_buf[64];                  /* uninitialized array     */\n__attribute__((section(\".noinit\"))) uint32_t g_reset_reason;\n\nint32_t counter(void)\n{\n    static int32_t calls;                  /* static local (zero)     */\n    static int32_t base = 100;             /* static local (init)     */\n    int32_t local = base + calls++;        /* automatic: stack/reg    */\n    return local + s_file_static + g_table[3] + g_const;\n}\n\nvoid unused_function(void) { g_buf[0] = 1; }\n\nint main(void)\n{\n    g_zero = counter() + g_init + g_zero_expl + g_msg[0] + (int32_t)g_reset_reason;\n    for (;;) { }\n}\n\nvoid Reset_Handler(void) { main(); }\n",
+  "linkerScript": "MEMORY\n{\n  FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 512K\n  RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 128K\n}\nENTRY(Reset_Handler)\nSECTIONS\n{\n  .text : { KEEP(*(.isr_vector)) *(.text*) } > FLASH\n  .rodata : { *(.rodata*) } > FLASH\n  _sidata = LOADADDR(.data);\n  .data : { _sdata = .; *(.data*) _edata = .; } > RAM AT > FLASH\n  .bss (NOLOAD) : { _sbss = .; *(.bss*) *(COMMON) _ebss = .; } > RAM\n  .noinit (NOLOAD) : { *(.noinit*) } > RAM\n  /DISCARD/ : { *(.ARM.exidx*) *(.comment) }\n}\n",
+  "objectSymbols": {
+   "calls.1": {
+    "section": ".bss",
+    "size": 4,
+    "bind": "local",
+    "kind": "object"
+   },
+   "counter": {
+    "section": ".text",
+    "size": 16,
+    "bind": "global",
+    "kind": "function"
+   },
+   "unused_function": {
+    "section": ".text",
+    "size": 12,
+    "bind": "global",
+    "kind": "function"
+   },
+   "main": {
+    "section": ".text",
+    "size": 48,
+    "bind": "global",
+    "kind": "function"
+   },
+   "Reset_Handler": {
+    "section": ".text",
+    "size": 6,
+    "bind": "global",
+    "kind": "function"
+   },
+   "g_reset_reason": {
+    "section": ".noinit",
+    "size": 4,
+    "bind": "global",
+    "kind": "object"
+   },
+   "g_buf": {
+    "section": ".bss",
+    "size": 64,
+    "bind": "global",
+    "kind": "object"
+   },
+   "g_msg": {
+    "section": ".data",
+    "size": 4,
+    "bind": "global",
+    "kind": "object"
+   },
+   "g_table": {
+    "section": ".rodata",
+    "size": 256,
+    "bind": "global",
+    "kind": "object"
+   },
+   "g_const": {
+    "section": ".rodata",
+    "size": 4,
+    "bind": "global",
+    "kind": "object"
+   },
+   "g_zero_expl": {
+    "section": ".bss",
+    "size": 4,
+    "bind": "global",
+    "kind": "object"
+   },
+   "g_zero": {
+    "section": ".bss",
+    "size": 4,
+    "bind": "global",
+    "kind": "object"
+   },
+   "g_init": {
+    "section": ".data",
+    "size": 4,
+    "bind": "global",
+    "kind": "object"
+   }
+  },
+  "link": {
+   "plain": {
+    "flags": "-mcpu=cortex-m4 -mthumb -O1 -fno-common -fno-asynchronous-unwind-tables",
+    "sections": [
+     {
+      "name": ".text",
+      "size": 84,
+      "addr": 134217728,
+      "lma": 134217728
+     },
+     {
+      "name": ".rodata",
+      "size": 268,
+      "addr": 134217812,
+      "lma": 134217812
+     },
+     {
+      "name": ".data",
+      "size": 8,
+      "addr": 536870912,
+      "lma": 134218080
+     },
+     {
+      "name": ".bss",
+      "size": 76,
+      "addr": 536870920,
+      "lma": 134218088
+     },
+     {
+      "name": ".noinit",
+      "size": 4,
+      "addr": 536870996,
+      "lma": 134218088
+     }
+    ],
+    "symbols": {
+     "counter": {
+      "addr": 134217728,
+      "size": 16,
+      "type": "T"
+     },
+     "unused_function": {
+      "addr": 134217744,
+      "size": 12,
+      "type": "T"
+     },
+     "main": {
+      "addr": 134217756,
+      "size": 48,
+      "type": "T"
+     },
+     "Reset_Handler": {
+      "addr": 134217804,
+      "size": 6,
+      "type": "T"
+     },
+     "g_table": {
+      "addr": 134217820,
+      "size": 256,
+      "type": "R"
+     },
+     "g_const": {
+      "addr": 134218076,
+      "size": 4,
+      "type": "R"
+     },
+     "_sidata": {
+      "addr": 134218080,
+      "size": 0,
+      "type": "A"
+     },
+     "_sdata": {
+      "addr": 536870912,
+      "size": 0,
+      "type": "D"
+     },
+     "g_init": {
+      "addr": 536870912,
+      "size": 4,
+      "type": "D"
+     },
+     "g_msg": {
+      "addr": 536870916,
+      "size": 4,
+      "type": "D"
+     },
+     "_edata": {
+      "addr": 536870920,
+      "size": 0,
+      "type": "D"
+     },
+     "_sbss": {
+      "addr": 536870920,
+      "size": 0,
+      "type": "B"
+     },
+     "calls.1": {
+      "addr": 536870920,
+      "size": 4,
+      "type": "b"
+     },
+     "g_buf": {
+      "addr": 536870924,
+      "size": 64,
+      "type": "B"
+     },
+     "g_zero": {
+      "addr": 536870988,
+      "size": 4,
+      "type": "B"
+     },
+     "g_zero_expl": {
+      "addr": 536870992,
+      "size": 4,
+      "type": "B"
+     },
+     "_ebss": {
+      "addr": 536870996,
+      "size": 0,
+      "type": "B"
+     },
+     "g_reset_reason": {
+      "addr": 536870996,
+      "size": 4,
+      "type": "B"
+     }
+    },
+    "berkeley": {
+     "text": 352,
+     "data": 8,
+     "bss": 80
+    }
+   },
+   "gc": {
+    "flags": "-mcpu=cortex-m4 -mthumb -O1 -fno-common -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -Wl,--gc-sections",
+    "sections": [
+     {
+      "name": ".text",
+      "size": 82,
+      "addr": 134217728,
+      "lma": 134217728
+     },
+     {
+      "name": ".rodata",
+      "size": 6,
+      "addr": 134217812,
+      "lma": 134217812
+     },
+     {
+      "name": ".data",
+      "size": 8,
+      "addr": 536870912,
+      "lma": 134217818
+     },
+     {
+      "name": ".bss",
+      "size": 12,
+      "addr": 536870920,
+      "lma": 134217826
+     },
+     {
+      "name": ".noinit",
+      "size": 4,
+      "addr": 536870932,
+      "lma": 134217826
+     }
+    ],
+    "symbols": {
+     "counter": {
+      "addr": 134217728,
+      "size": 16,
+      "type": "T"
+     },
+     "main": {
+      "addr": 134217744,
+      "size": 60,
+      "type": "T"
+     },
+     "Reset_Handler": {
+      "addr": 134217804,
+      "size": 6,
+      "type": "T"
+     },
+     "_sidata": {
+      "addr": 134217818,
+      "size": 0,
+      "type": "A"
+     },
+     "_sdata": {
+      "addr": 536870912,
+      "size": 0,
+      "type": "D"
+     },
+     "g_msg": {
+      "addr": 536870912,
+      "size": 4,
+      "type": "D"
+     },
+     "g_init": {
+      "addr": 536870916,
+      "size": 4,
+      "type": "D"
+     },
+     "_edata": {
+      "addr": 536870920,
+      "size": 0,
+      "type": "D"
+     },
+     "_sbss": {
+      "addr": 536870920,
+      "size": 0,
+      "type": "B"
+     },
+     "calls.1": {
+      "addr": 536870920,
+      "size": 4,
+      "type": "b"
+     },
+     "g_zero_expl": {
+      "addr": 536870924,
+      "size": 4,
+      "type": "B"
+     },
+     "g_zero": {
+      "addr": 536870928,
+      "size": 4,
+      "type": "B"
+     },
+     "_ebss": {
+      "addr": 536870932,
+      "size": 0,
+      "type": "B"
+     },
+     "g_reset_reason": {
+      "addr": 536870932,
+      "size": 4,
+      "type": "B"
+     }
+    },
+    "berkeley": {
+     "text": 88,
+     "data": 8,
+     "bss": 16
+    }
+   }
+  }
+ },
+ "walkthrough": {
+  "source": "#include <stdint.h>\n/* Small functions compiled for Cortex-M0 (Thumb-1) for the step-by-step walkthrough. */\nint sum_n(int n)\n{\n    int s = 0;\n    for (int i = 1; i <= n; i++)\n        s += i;\n    return s;\n}\n\nint max3(int a, int b, int c)\n{\n    int m = a;\n    if (b > m) m = b;\n    if (c > m) m = c;\n    return m;\n}\n\nint count_bits(uint32_t x)\n{\n    int c = 0;\n    while (x) {\n        c += x & 1u;\n        x >>= 1;\n    }\n    return c;\n}\n",
+  "flags": "-mcpu=cortex-m0 -mthumb -O1",
+  "asm": "sum_n:\n\tcmp r0, #0\n\tble .L4\n\tadds r2, r0, #1\n\tmovs r3, #1\n\tmovs r0, #0\n.L3:\n\tadds r0, r0, r3\n\tadds r3, r3, #1\n\tcmp r3, r2\n\tbne .L3\n.L1:\n\tbx lr\n.L4:\n\tmovs r0, #0\n\tb .L1\nmax3:\n\tmovs r3, r0\n\tcmp r1, r2\n\tbge .L7\n\tmovs r1, r2\n.L7:\n\tmovs r0, r1\n\tcmp r1, r3\n\tbge .L8\n\tmovs r0, r3\n.L8:\n\tbx lr\ncount_bits:\n\tsubs r3, r0, #0\n\tbeq .L12\n\tmovs r0, #0\n\tmovs r1, #1\n.L11:\n\tmovs r2, r1\n\tands r2, r3\n\tadds r0, r2, r0\n\tlsrs r3, r3, #1\n\tbne .L11\n.L9:\n\tbx lr\n.L12:\n\tmovs r0, #0\n\tb .L9"
+ }
+}

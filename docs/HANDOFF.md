@@ -1,6 +1,6 @@
 # Handoff — IAR FAE Interview Academy
 
-> Last updated: 2026-10-16 (Asia/Taipei). Written so that you (or a new Claude session) can continue the work on another machine.
+> Last updated: 2026-10-16 (Asia/Taipei), after Phase 5. Written so that you (or a new Claude session) can continue the work on another machine.
 > Original requirements: [`docs/SPEC.md`](./SPEC.md) (the full Chinese spec). Job description source: `IAR FAE Taiwan.pdf` (not in repo; its content is extracted into `src/content/jd.ts`).
 
 ---
@@ -10,10 +10,10 @@
 | Phase | Scope (from SPEC §6) | Status |
 |---|---|---|
 | 1 | Init, UI/navigation, Dashboard, DB, JD Requirement Mapping, diagnostic test | ✅ Done |
-| 2 | Technical Learning Center, real lesson content, Quiz system, progress tracking | 🟡 Engine done; **Tracks 1–4 written (20 lessons)**; **Track 5 (IAR) and Track 6 (FAE) content not written** |
-| 3 | English interview bank, Speaking/Listening practice, recruiter bank | ⬜ Not started |
-| 4 | AI Mock Interview (3 modes), Interview Copilot, AI feedback | ⬜ Not started (only `src/lib/ai.ts` client exists) |
-| 5 | Interactive labs, Spaced repetition UI, analytics, 14-day plan, daily 30/60/90 mode | ⬜ Not started (SRS scheduling logic + DB tables exist) |
+| 2 | Technical Learning Center, real lesson content, Quiz system, progress tracking | ✅ Done (30 lessons, Tracks 1–6) |
+| 3 | English interview bank, Speaking/Listening practice, recruiter bank | ✅ Done (commit 619d09e) |
+| 4 | AI Mock Interview (3 modes), Interview Copilot, AI feedback | ✅ Done (commit 619d09e; rule-based fallback when no AI key) |
+| 5 | Interactive labs, Spaced repetition UI, analytics, 14-day plan, daily 30/60/90 mode | ✅ Done (7 labs, /review, /plan, /notes) |
 
 Every commit so far passes `npm run build`, `npm run lint` (0 errors), `npm run typecheck`, and was smoke-tested against a local Postgres.
 
@@ -45,7 +45,8 @@ Every commit so far passes `npm run build`, `npm run lint` (0 errors), `npm run 
 - **Recharts** for radar/bar charts (`src/components/charts/`).
 - **Speech**: `src/lib/speech.ts` (Web Speech API TTS + SpeechRecognition wrapper). Used by the diagnostic listening section; Phase 3 should reuse it.
 - **AI**: `src/lib/ai.ts` — `aiProvider()`, `aiChat()`, `aiJson()` via raw `fetch` to Anthropic Messages API / OpenAI Chat Completions. Server-only. Every AI feature must have a **non-AI fallback** (SPEC §5).
-- **Time zone**: user is in Asia/Taipei; `dayKey()`/`fmtDate()` in `src/lib/utils.ts` format in that zone to avoid hydration mismatches.
+- **Time zone**: user is in Asia/Taipei; `dayKey()`/`fmtDate()` in `src/lib/utils.ts` format in that zone. `fmtDate()` is now a hand-rolled `MM/DD HH:mm` (UTC+8) **without ICU** — Node and Chrome produced different `toLocaleString("zh-TW")` output (`下午06:13` vs `下午6:13`), causing React hydration error #418 on `/notes`. Don't use `toLocaleString` in anything rendered on the server.
+- **Turbopack build cache gotcha**: once `next build` reported "Compiled successfully in 530ms" but kept stale chunks (old code served). If a fix doesn't show up in `next start`, `rm -rf .next` and rebuild. Also always kill the old `next-server` before restarting, otherwise you get "Failed to load chunk" errors.
 
 ## 4. Repository map
 
@@ -76,6 +77,20 @@ src/components/
   learn/           quiz-block, notes-panel, bookmark-button, lesson-actions (visit/complete), code-block
   charts/          radar.tsx, minutes-bar.tsx
   md.tsx, mermaid.tsx, ui/index.tsx
+labs-src/                          # C sources for the labs (compiled offline, see below)
+scripts/gen-lab-data.mjs           # compiles labs-src with arm-none-eabi-gcc → src/content/labs-data/gcc-output.json
+src/content/labs.ts                # lab registry (titles, checkpoints MCQs, related lessons, memory/debug data)
+src/content/labs-data/gcc-output.json  # REAL compiler output (asm per -O level, sizes, section maps)
+src/content/plan.ts                # 14-day plan (days, tasks with weight core|extra, minutes, href)
+src/lib/rtos-sim.ts                # tick-based fixed-priority preemptive scheduler + mutex/inheritance
+src/lib/thumb.ts                   # tiny Thumb-1 subset interpreter (only the instructions in the asm lab)
+src/lib/plan.ts                    # planDayIndex, planState (auto-done from lessons/labs/diagnostic), todayAgenda
+src/components/labs/*              # one component per lab + checkpoint.tsx (MCQ → Activity type "lab")
+src/app/labs/, labs/[lab]/         # lab list + lab page (data-source callout, checkpoint, notes, bookmark)
+src/app/review/                    # SRS session (SM-2), term-card seeding, suspend, 7-day forecast
+src/app/plan/                      # 14-day plan + today agenda (fits dailyMinutes; 30 = core only; catches up)
+src/app/notes/                     # all notes + bookmarks, search/filter/edit/delete, Markdown export
+src/app/api/review, api/plan       # review: grade|seedTerms|suspend|finish ; plan: toggle manual task
 src/app/
   page.tsx                 Dashboard
   diagnostic/              diagnostic test (client) + previous result
@@ -86,7 +101,7 @@ src/app/
   api/                     auth/login|logout, diagnostic, lesson, quiz, notes, bookmarks, settings, export, reset
 ```
 
-**Sidebar gating**: `src/components/layout/enabled.ts` lists routes shown in the sidebar and used by JD-page links. Currently `["/", "/diagnostic", "/jd", "/learn", "/settings"]`. Add a route there only when the page actually works (SPEC: no empty pages). `nav.ts` already contains labels/icons for all planned routes: `/plan /labs /review /english /speaking /mock /copilot /notes`.
+**Sidebar gating**: `src/components/layout/enabled.ts` lists routes shown in the sidebar and used by JD-page links. Currently all 13 routes are enabled (Phase 5 complete).
 
 ## 5. Data model (Prisma)
 
@@ -97,47 +112,30 @@ Conventions:
 - English practice → put `payloadJson.subScores = { listening?, speaking?, intro?, techExplain?, business?, followUp? }` (0–100) to update the English radar.
 - Wrong answers → `upsertCard({cardKey:"quiz:<questionId>", kind:"quiz", skill, front: JSON{q,code,options,lessonId}, back: JSON{answer,explain}}, true)`.
 
-## 6. Remaining work — detailed
+## 6. Phase 5 notes & remaining work
 
-### 6.1 Phase 2 remainder: Track 5 & Track 6 content
-Create `src/content/lessons/t5.ts` and `t6.ts` exporting `T5`/`T6: LessonContent[]`, register in `lessons/index.ts`. Lesson IDs and titles are already in `catalog.ts`. Each lesson needs all 11 sections and ≥5 quiz questions (follow the shape of `t1.ts`). Use `toVerify: [...]` for anything not confirmed against IAR official docs — **do not invent IAR options/commands** (SPEC §3 Track 5).
+### 6.1 How the lab data is produced (honesty rule)
+The optimization / sections / asm labs show **pre-compiled output, labelled in the UI** — the site never runs a compiler.
+Regenerate after editing `labs-src/*.c`:
+```bash
+# xPack GCC 14.2.1 (no root needed):
+curl -L -o /var/tmp/gcc.tgz https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v14.2.1-1.1/xpack-arm-none-eabi-gcc-14.2.1-1.1-linux-x64.tar.gz
+tar -xzf /var/tmp/gcc.tgz -C /var/tmp
+ARM_GCC_BIN=/var/tmp/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin node scripts/gen-lab-data.mjs
+```
+Facts verified from the real output (used in lab text/checkpoints): missing-`volatile` poll loop becomes `b .L3` at -O1+; clear loop → `b memset` at -O2; `calc()` folds to `movs r0,#70`; switch → `CSWTCH` table; with `--gc-sections` `unused_function`, `g_table`, `g_buf` are removed. IAR output will differ (UI says so).
+RTOS sim: H finishes tick 15 (response 12) without inheritance vs tick 9 (response 6) with it. Thumb interpreter: sum_n(5)=15, max3(3,9,4)=9.
 
-**Track 5 (IAR) lesson IDs**: `t5-ew`, `t5-compiler`, `t5-ilink`, `t5-cspy`, `t5-migration`. Notes prepared for writing them (verify each against the *IAR C/C++ Development Guide for Arm*, *C-SPY Debugging Guide*, *IDE Project Management and Building Guide* for the installed version):
-- Products: IAR Embedded Workbench for Arm / for RISC-V / other MCU architectures; IAR is part of Qt Group (operates independently, per JD).
-- Project files: workspace `.eww`, project `.ewp`, debugger settings `.ewd`; Debug/Release configurations; per-file option overrides.
-- Arm tool names: `iccarm` (compiler), `iasmarm` (assembler), `ilinkarm` (linker), `iarchive`, `ielftool` (hex/bin, fill, checksum), `ielfdumparm`, `iobjmanip`, `isymexport`; command-line project build `iarbuild`; batch debugger `cspybat`. (verify flags)
-- Optimization levels in IDE: None / Low / Medium / High (High: Balanced / Size / Speed); command line believed `-On/-Ol/-Om/-Oh/-Ohs/-Ohz`; multi-file compilation (`--mfc`). (verify)
-- Extended keywords/pragmas commonly documented: `__no_init`, `__ramfunc`, `__root`, `__weak`, `__packed`, `__stackless`, `#pragma location`, `@` placement operator, `#pragma optimize`, `#pragma required`, `#pragma diag_suppress`, `#pragma inline=forced`, `#pragma pack`, `#pragma data_alignment`; `intrinsics.h` (e.g. `__disable_interrupt()`). (verify per arch/version)
-- Runtime library: DLIB with library configurations (Normal/Full/custom); low-level I/O hooks (`__write` etc.) replacing newlib syscalls (`_write`, `_sbrk`). (verify)
-- ILINK/ICF: see `t2-linker-script` (already written); stack usage analysis in linker; ILINK removes unused sections by default; checksum/fill via `ielftool`.
-- C-SPY: Simulator + hardware drivers (I-jet, J-Link, ST-LINK, CMSIS-DAP…), Live Watch, Call Stack, Disassembly, breakpoints/data breakpoints, setup macros (`.mac`, e.g. `execUserReset()`), RTOS awareness plugins, trace/profiling/code coverage, fault exception analysis, power debugging (I-jet). (verify names)
-- Analysis: C-STAT (static analysis, MISRA/CERT/CWE rule sets), C-RUN (runtime analysis). Functional-safety certified editions (TÜV SÜD; IEC 61508 / ISO 26262 etc.). (verify)
-- CI: IAR build tools for Linux/containers, VS Code extensions (IAR Build, IAR C-SPY Debug). Licensing model has changed over time — **always verify current licensing**.
-- GCC→IAR migration checklist: startup file (use IAR version from CMSIS/vendor pack), linker script → ICF, `__attribute__` usage → wrap with CMSIS `cmsis_compiler.h` macros (`__PACKED`, `__WEAK`, `__ALIGNED`, `__USED`, `__STATIC_INLINE`), section placement (`__attribute__((section))` → `#pragma location`/`@`), inline asm syntax (prefer CMSIS intrinsics), newlib syscalls → DLIB low-level interface, `-ffunction-sections/--gc-sections` not needed, **enum size defaults may differ** (check IAR enum option, e.g. `--enum_is_int` — verify) and `wchar_t`/bit-field layout, `.noinit` → `__no_init` + `do not initialize`, compare map files after migration. Fair IAR-vs-GCC comparison: measure on customer code with equal library settings (see `t2-linking`).
+### 6.2 Conventions added
+- Lab checkpoint → `Activity{type:"lab", refId:<lab>, skill, score}` (feeds radar). Lab notes use `refType:"lab"`.
+- Review: quiz cards re-asked → `QuizAttempt{source:"review"}`; term cards seeded from lesson glossaries (`cardKey "term:<lesson>:<en>"`, idempotent); session end → `Activity{type:"review"}`.
+- Plan: manual tasks stored via `/api/plan`; lesson/lab/diagnostic tasks are auto-done from real progress. The page states it is a suggested rhythm, not a known interview date.
+- `recommend.ts` adds "開始 14 天學習計畫" or today's plan items (only after a diagnostic exists); returns up to 4.
 
-**Track 6 (FAE) lesson IDs**: `t6-role`, `t6-discovery`, `t6-pov`, `t6-support`, `t6-objection`. Source all "IAR-specific" claims from the JD only. Content ideas: sales stages (lead → qualification → discovery → demo → PoV/evaluation → proposal → close → onboarding → support/renewal) and FAE contribution at each; discovery question bank (project, MCU/arch, current toolchain, CI/CD, compliance/functional safety, pain points, decision makers & timeline); PoV with written success criteria, fair benchmarking, win/loss analysis (JD Reporting & Metrics); support triage → reproduce → workaround → escalate to global support/product team, KB article writing; objection handling (acknowledge → clarify → respond with evidence → confirm), technical presentation structure for engineers vs managers. Quiz skill = `"fae"`. "Code" section can be example emails/discovery templates (lang `"text"`).
-
-### 6.2 Phase 3 — English Interview Training & Speaking
-- New `src/content/english.ts`: categories `recruiter, intro, career, technical, toolchain, fae, behavioral, salary, ask` (IDs already referenced by `jd.ts` → `/english?cat=<id>`).
-- Each question (SPEC Module D): `en`, `zh`, `intent`, `answerSimple`, `answerAdvanced`, `answerZh`, `keyPhrases[]`, `followUps[]`; user answer area (save to `Note` with `refType:"english"` or a new table) + mark practiced (`Activity` type `english`, `subScores`).
-- **Answers must be grounded in the user's real background** (SPEC §1): Software Department Manager; C/C++/C#; Embedded Linux; FreeRTOS; ARM SoC; Xilinx Zynq / UltraScale+ MPSoC; FPGA SoC HW/SW integration; SSD/SD controller firmware; NAND flash; Windows desktop & Linux user-space apps; Make/CMake/GCC; team management. **Do not fabricate** IAR usage, overseas/global-company work, or customer-sales experience. Example: "How familiar are you with compiler toolchains?" → honest: strong embedded user of toolchains, not a compiler-internals specialist, actively studying.
-- Salary questions: recruiter info — annual total comp budget up to ~TWD 4,000,000 (budget ceiling, not guaranteed), base/bonus 70/30, bonus quarterly after 6-month probation, remote work unconfirmed.
-- `/speaking` page: TTS (normal + slow), SpeechRecognition (`getRecognition()` in `src/lib/speech.ts`), show transcript + recognition confidence, repeat practice, term drills (use lesson `terms`), manual input fallback. Scoring must separate: content evaluation / ASR confidence / pronunciation (**disabled** unless real acoustic analysis exists — say so in UI).
-- Add `/english`, `/speaking` to `enabled.ts`.
-
-### 6.3 Phase 4 — Mock Interview & Copilot
-- `/mock?mode=recruiter|technical|customer`, persisted in `MockSession`. With AI: system prompt per persona (recruiter "Nick", IAR technical manager, customer scenarios from SPEC Module E), **dynamic follow-ups based on the answer**, per-answer feedback JSON: technical accuracy, communication clarity, English quality, answer structure, completeness (observable features only — never claim to judge psychological confidence), improved natural answer. Without AI: rule-based fallback — question bank with keyword-triggered follow-ups, heuristic scoring (length, structure markers, keyword coverage, filler words), clearly labeled "規則式評估（未連接 AI）".
-- `/copilot`: paste/type an English question → zh translation, intent, 2–3 sentence Quick Answer, optional extended answer; large font, low distraction. Without AI: nearest-match from the English bank (token similarity). No meeting audio capture (SPEC).
-- Log `Activity` (`mock`/`copilot`) with skill `english`/`fae`/`compiler`… and `subScores`.
-
-### 6.4 Phase 5 — Labs, SRS, analytics, plan
-- `/labs/[lab]` with IDs already referenced by `jd.ts`: `optimization`, `memory-layout`, `sections`, `stack-heap`, `rtos-sim`, `asm-walkthrough`, `debug-cases`.
-  - Optimization lab: **pre-compiled, clearly labeled** outputs (never pretend to run GCC/IAR live). Idea: generate real outputs offline with a real compiler and commit them as data. Optional local real-compile backend: disabled by default (`ENABLE_LOCAL_COMPILER=1`), `execFile` (no shell), `-S` only, timeout/size limits, reject absolute/`..` includes; not usable on Vercel.
-  - RTOS lab: preemptive priority simulation + Gantt + priority-inversion scenario with inheritance toggle. Debug cases: include a CFSR/HFSR decoder (bit tables are in `t3-hardfault`). Assembly walkthrough: tiny Thumb subset interpreter with register view.
-- `/review`: due `ReviewCard`s (SM-2 via `schedule()` in `src/lib/srs.ts`; grades 0–3), quiz-type cards re-asked as MCQ; log `QuizAttempt` with `source:"review"`. Also term cards from lesson `terms`.
-- `/plan`: 14-day plan (priority order in SPEC §4: 1 English self-intro & recruiter, 2 compiler/linker basics, 3 debugging/optimization, 4 IAR toolchain, 5 FAE scenarios, 6 technical-manager mock); tasks stored in `PlanTask`; start date from `Settings.planStartDate`; "today" agenda sized by `dailyMinutes` (30/60/90) mixing plan tasks, due reviews and weakest skill. State clearly it is a suggested rhythm, not a known interview date.
-- `/notes`: list all notes and bookmarks (APIs exist: `/api/notes`, `/api/bookmarks`).
-- Dashboard: once `/review` and `/plan` exist, `recommend.ts` already handles review; add plan tasks.
+### 6.3 Still open
+- **Vercel deployment not confirmed** (see §2 env vars). After deploy, smoke-test `/labs`, `/review`, `/plan`, `/notes` against Supabase.
+- **Security TODO stands**: reset the Supabase DB password and update only the Vercel env var.
+- Ideas (not required by SPEC): more labs data (IAR-specific outputs would need a licensed IAR toolchain — do not fabricate), analytics charts per lab.
 
 ## 7. Local development
 
