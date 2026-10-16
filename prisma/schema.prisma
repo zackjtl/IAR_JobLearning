@@ -1,11 +1,11 @@
-// IAR FAE Interview Academy — local SQLite schema
+// IAR FAE Interview Academy — Postgres (Supabase) schema
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 /// 單一使用者設定（id 固定為 1）

@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
+// Cache Components is intentionally NOT enabled: this is a single-user,
+// DB-backed learning app where every page shows live personal progress.
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {
@@ -12,6 +11,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  serverExternalPackages: ["pg"],
 };
 
 export default nextConfig;
